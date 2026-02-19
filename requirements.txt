@@ -1,6 +1,8 @@
 flask
-uvicorn
-websockets
+flask-sock
+gunicorn
+gevent
+
 
 
 
