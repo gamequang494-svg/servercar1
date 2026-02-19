@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import json
 import threading
 import time
@@ -118,6 +121,7 @@ threading.Thread(target=esp_watchdog, daemon=True).start()
 
 
 # ================= RUN =================
+
 
 
 
