@@ -7,7 +7,8 @@ import os
 app = Flask(__name__)
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app)
-sock = Sock(app)
+sock = Sock(app, websocket_options={"compression": None})
+
 
 esp_client = None
 browser_clients = set()
@@ -117,6 +118,7 @@ threading.Thread(target=esp_watchdog, daemon=True).start()
 
 
 # ================= RUN =================
+
 
 
 
