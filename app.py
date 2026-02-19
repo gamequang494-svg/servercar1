@@ -1,13 +1,20 @@
+import json
 import time
+import threading
 from flask import Flask, render_template, request
-from flask_socketio import SocketIO
+
+from gevent import monkey
+from geventwebsocket import WebSocketError
+
+monkey.patch_all()
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
 
-esp_sid = None
+esp_client = None
+browser_clients = set()
 esp_last_seen = 0
 ESP_TIMEOUT = 30
+lock = threading.Lock()
 
 
 @app.route("/")
@@ -15,32 +22,65 @@ def index():
     return render_template("index.html")
 
 
-@socketio.on("connect")
-def on_connect():
-    print("Client connected")
+@app.route("/ws")
+def ws():
+    global esp_client, esp_last_seen
 
+    if not request.environ.get("wsgi.websocket"):
+        return "WebSocket required", 400
 
-@socketio.on("register_esp")
-def register_esp():
-    global esp_sid, esp_last_seen
-    esp_sid = request.sid
-    esp_last_seen = time.time()
-    print("ESP REGISTERED")
+    ws = request.environ["wsgi.websocket"]
+    role = None
 
+    print("WS CONNECTED")
 
-@socketio.on("cmd")
-def handle_cmd(data):
-    if esp_sid:
-        socketio.emit("cmd", data, room=esp_sid)
+    try:
+        while True:
+            data = ws.receive()
+            if not data:
+                break
 
+            obj = json.loads(data)
 
-@socketio.on("telemetry")
-def handle_telemetry(data):
-    global esp_last_seen
-    if request.sid == esp_sid:
-        esp_last_seen = time.time()
-        socketio.emit("telemetry", data)
+            # ESP heartbeat
+            if "hb" in obj:
+                with lock:
+                    esp_client = ws
+                    esp_last_seen = time.time()
+                role = "esp"
+                print("ESP REGISTERED")
+                continue
 
+            # Browser command
+            if "cmd" in obj:
+                with lock:
+                    browser_clients.add(ws)
+                role = "browser"
 
-if __name__ == "__main__":
-    socketio.run(app)
+                if esp_client:
+                    esp_client.send(data)
+                continue
+
+            # Telemetry
+            if ws == esp_client:
+                esp_last_seen = time.time()
+                dead = []
+                for b in list(browser_clients):
+                    try:
+                        b.send(data)
+                    except:
+                        dead.append(b)
+                for d in dead:
+                    browser_clients.discard(d)
+
+    except WebSocketError:
+        pass
+
+    finally:
+        print("WS DISCONNECTED")
+        with lock:
+            browser_clients.discard(ws)
+            if ws == esp_client:
+                esp_client = None
+
+    return ""
