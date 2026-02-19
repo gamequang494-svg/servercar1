@@ -11,20 +11,10 @@ esp_client = None
 browser_clients = set()
 esp_last_seen = 0
 
-# ===== HTTP ROUTE =====
 @app.route("/")
-def index():
-    return """
-    <h2>RC CAR SERVER READY</h2>
-    <script>
-    let ws = new WebSocket("wss://" + location.host + "/ws");
-    ws.onopen = () => console.log("WS Connected");
-    ws.onmessage = e => console.log("Received:", e.data);
-    ws.onclose = () => console.log("WS Closed");
-    </script>
-    """
+def health():
+    return "OK", 200
 
-# ===== WEBSOCKET =====
 @sock.route("/ws")
 def websocket(ws):
     global esp_client, esp_last_seen
@@ -64,7 +54,6 @@ def websocket(ws):
     if ws == esp_client:
         esp_client = None
 
-# ===== WATCHDOG =====
 def watchdog():
     global esp_client
     while True:
