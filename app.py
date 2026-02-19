@@ -1,19 +1,15 @@
 import json
-import time
 import threading
-from flask import Flask, render_template, request
-
-from gevent import monkey
-from geventwebsocket import WebSocketError
-
-monkey.patch_all()
-
+import time
+from flask import Flask, render_template
+from flask_sock import Sock
+import os
 app = Flask(__name__)
+sock = Sock(app)
 
 esp_client = None
 browser_clients = set()
 esp_last_seen = 0
-ESP_TIMEOUT = 30
 lock = threading.Lock()
 
 
@@ -22,65 +18,116 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/ws")
-def ws():
+# ================= BROADCAST =================
+
+def broadcast_to_browsers(message):
+    dead = []
+    for ws in browser_clients:
+        try:
+            ws.send(message)
+        except:
+            dead.append(ws)
+
+    for ws in dead:
+        browser_clients.discard(ws)
+
+
+def send_to_esp(message):
+    global esp_client
+    if esp_client:
+        try:
+            esp_client.send(message)
+        except:
+            print("ESP send failed")
+
+
+# ================= WEBSOCKET =================
+
+@sock.route("/ws")
+def websocket(ws):
     global esp_client, esp_last_seen
-
-    if not request.environ.get("wsgi.websocket"):
-        return "WebSocket required", 400
-
-    ws = request.environ["wsgi.websocket"]
-    role = None
 
     print("WS CONNECTED")
 
+    role = None
+
     try:
         while True:
+
             data = ws.receive()
-            if not data:
+            if data is None:
                 break
 
-            obj = json.loads(data)
+            try:
+    obj = json.loads(data)
+except:
+    continue
 
-            # ESP heartbeat
+
+            # ===== ESP HEARTBEAT =====
             if "hb" in obj:
-                with lock:
-                    esp_client = ws
-                    esp_last_seen = time.time()
-                role = "esp"
-                print("ESP REGISTERED")
-                continue
 
-            # Browser command
+    with lock:
+        if esp_client and esp_client != ws:
+            try:
+                esp_client.close()
+            except:
+                pass
+
+        esp_client = ws
+        esp_last_seen = time.time()
+
+    role = "esp"
+    continue
+
+
+            # ===== BROWSER COMMAND =====
             if "cmd" in obj:
-                with lock:
+                if ws not in browser_clients:
                     browser_clients.add(ws)
+
                 role = "browser"
 
-                if esp_client:
-                    esp_client.send(data)
+                send_to_esp(data)
                 continue
 
-            # Telemetry
+            # ===== TELEMETRY FROM ESP =====
             if ws == esp_client:
-                esp_last_seen = time.time()
-                dead = []
-                for b in list(browser_clients):
-                    try:
-                        b.send(data)
-                    except:
-                        dead.append(b)
-                for d in dead:
-                    browser_clients.discard(d)
+                broadcast_to_browsers(data)
 
-    except WebSocketError:
-        pass
+    except Exception as e:
+        print("WS ERROR:", e)
 
     finally:
         print("WS DISCONNECTED")
-        with lock:
-            browser_clients.discard(ws)
-            if ws == esp_client:
+
+        browser_clients.discard(ws)
+
+        if ws == esp_client:
+            with lock:
                 esp_client = None
 
-    return ""
+# ================= ESP WATCHDOG =================
+
+def esp_watchdog():
+    global esp_client
+
+    while True:
+        time.sleep(5)
+
+        with lock:
+            if esp_client and (time.time() - esp_last_seen > 20):
+                print("ESP TIMEOUT")
+                esp_client = None
+
+
+threading.Thread(target=esp_watchdog, daemon=True).start()
+
+
+# ================= RUN =================
+
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    print(f"RC CAR WS Server running on port {port}")
+    app.run(host="0.0.0.0", port=port)
