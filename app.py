@@ -59,26 +59,25 @@ def websocket(ws):
                 break
 
             try:
-    obj = json.loads(data)
-except:
-    continue
-
+                obj = json.loads(data)
+            except:
+                continue
 
             # ===== ESP HEARTBEAT =====
             if "hb" in obj:
 
-    with lock:
-        if esp_client and esp_client != ws:
-            try:
-                esp_client.close()
-            except:
-                pass
+                with lock:
+                    if esp_client and esp_client != ws:
+                        try:
+                            esp_client.close()
+                        except:
+                            pass
 
-        esp_client = ws
-        esp_last_seen = time.time()
+                    esp_client = ws
+                    esp_last_seen = time.time()
 
-    role = "esp"
-    continue
+                role = "esp"
+                continue
 
 
             # ===== BROWSER COMMAND =====
@@ -131,4 +130,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
 
