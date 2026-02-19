@@ -113,7 +113,7 @@ def esp_watchdog():
     global esp_client
 
     while True:
-        time.sleep(5)
+        time.sleep(2)
 
         with lock:
             if esp_client and (time.time() - esp_last_seen > 20):
@@ -131,3 +131,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
