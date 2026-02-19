@@ -2,7 +2,7 @@ import json
 import threading
 import time
 import os
-from flask import Flask, render_template
+from quart import Quart, render_template
 from flask_sock import Sock
 
 app = Flask(__name__)
@@ -145,3 +145,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
