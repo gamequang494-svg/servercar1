@@ -2,8 +2,9 @@ import asyncio
 import json
 import time
 import os
-from websockets.server import serve
+from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
+
 
 esp_client = None
 browser_clients = set()
@@ -100,3 +101,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
