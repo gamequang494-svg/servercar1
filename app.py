@@ -5,6 +5,8 @@ from flask import Flask, render_template
 from flask_sock import Sock
 import os
 app = Flask(__name__)
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app)
 sock = Sock(app)
 
 esp_client = None
@@ -115,5 +117,6 @@ threading.Thread(target=esp_watchdog, daemon=True).start()
 
 
 # ================= RUN =================
+
 
 
