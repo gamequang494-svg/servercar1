@@ -115,15 +115,9 @@ threading.Thread(target=esp_watchdog, daemon=True).start()
 
 
 # ================= RUN =================
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-
-
-
