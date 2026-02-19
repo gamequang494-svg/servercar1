@@ -12,8 +12,9 @@ browser_clients = set()
 esp_last_seen = 0
 
 @app.route("/")
-def health():
-    return "OK", 200
+def index():
+    return render_template("index.html")
+
 
 @sock.route("/ws")
 def websocket(ws):
@@ -63,3 +64,4 @@ def watchdog():
             esp_client = None
 
 threading.Thread(target=watchdog, daemon=True).start()
+
