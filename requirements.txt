@@ -1,7 +1,8 @@
 flask
+flask-sock
 gunicorn
-gevent
-gevent-websocket
+simple-websocket
+
 
 
 
