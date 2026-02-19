@@ -1,7 +1,8 @@
 flask
-flask-sock
+flask-socketio
+eventlet
 gunicorn
-gevent
+
 
 
 
