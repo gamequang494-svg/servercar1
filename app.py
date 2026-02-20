@@ -75,6 +75,7 @@ def send_to_esp(message):
 @sock.route("/ws")
 def websocket(ws):
     global esp_client, esp_last_seen
+    global viewer_active, viewer_last_touch
 
     print("WS CONNECTED")
 
@@ -110,13 +111,13 @@ def websocket(ws):
 
             # ===== BROWSER COMMAND =====
             if "cmd" in obj:
+
                 if ws not in browser_clients:
                     browser_clients.add(ws)
 
                 role = "browser"
 
-                # NEW: cập nhật viewer khi có thao tác
-                global viewer_active, viewer_last_touch
+                # cập nhật viewer
                 viewer_active = True
                 viewer_last_touch = time.time()
 
@@ -124,16 +125,15 @@ def websocket(ws):
                 continue
 
             # ===== TELEMETRY FROM ESP =====
-            # ===== TELEMETRY FROM ESP =====
-if ws == esp_client:
+            if ws == esp_client:
 
-    update_viewer_state()
+                update_viewer_state()
 
-    if viewer_active:
-        broadcast_to_browsers(data)
-    else:
-        # Không có viewer → bỏ qua telemetry
-        pass
+                if viewer_active:
+                    broadcast_to_browsers(data)
+                else:
+                    # không có viewer → bỏ telemetry
+                    pass
 
     except Exception as e:
         print("WS ERROR:", e)
@@ -146,8 +146,6 @@ if ws == esp_client:
         if ws == esp_client:
             with lock:
                 esp_client = None
-
-
 # ================= ESP WATCHDOG =================
 
 def esp_watchdog():
@@ -171,4 +169,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
 
