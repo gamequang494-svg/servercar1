@@ -117,7 +117,6 @@ def websocket(ws):
 
                 role = "browser"
 
-                # cập nhật viewer
                 viewer_active = True
                 viewer_last_touch = time.time()
 
@@ -132,7 +131,7 @@ def websocket(ws):
                 if viewer_active:
                     broadcast_to_browsers(data)
                 else:
-                    # không có viewer → bỏ telemetry
+                    # Không có viewer → bỏ telemetry
                     pass
 
     except Exception as e:
@@ -169,5 +168,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
 
 
