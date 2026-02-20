@@ -1,9 +1,10 @@
 import json
 import threading
 import time
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_sock import Sock
 import os
+
 app = Flask(__name__)
 sock = Sock(app)
 
@@ -12,6 +13,34 @@ browser_clients = set()
 esp_last_seen = 0
 lock = threading.Lock()
 
+# ================= VIEWER STATE (NEW) =================
+
+viewer_active = False
+viewer_last_touch = 0
+VIEWER_TIMEOUT = 600  # 10 phút
+
+
+def update_viewer_state():
+    global viewer_active
+    if viewer_active and (time.time() - viewer_last_touch > VIEWER_TIMEOUT):
+        viewer_active = False
+
+
+@app.route("/touch", methods=["POST"])
+def touch():
+    global viewer_active, viewer_last_touch
+    viewer_active = True
+    viewer_last_touch = time.time()
+    return "ok"
+
+
+@app.route("/viewer_status")
+def viewer_status():
+    update_viewer_state()
+    return jsonify({"active": viewer_active})
+
+
+# ================= INDEX =================
 
 @app.route("/")
 def index():
@@ -79,13 +108,17 @@ def websocket(ws):
                 role = "esp"
                 continue
 
-
             # ===== BROWSER COMMAND =====
             if "cmd" in obj:
                 if ws not in browser_clients:
                     browser_clients.add(ws)
 
                 role = "browser"
+
+                # NEW: cập nhật viewer khi có thao tác
+                global viewer_active, viewer_last_touch
+                viewer_active = True
+                viewer_last_touch = time.time()
 
                 send_to_esp(data)
                 continue
@@ -105,6 +138,7 @@ def websocket(ws):
         if ws == esp_client:
             with lock:
                 esp_client = None
+
 
 # ================= ESP WATCHDOG =================
 
@@ -126,9 +160,6 @@ threading.Thread(target=esp_watchdog, daemon=True).start()
 # ================= RUN =================
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
-
-
