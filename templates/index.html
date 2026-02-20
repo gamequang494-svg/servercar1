@@ -44,14 +44,12 @@ input[type=range]{width:80px;}
 <div class="section">
 <b>MOTOR</b>
 
-<!-- TRIM trái -->
 <div class="row" style="justify-content:flex-start;align-items:center;">
   <span>TRIM L</span>
   <input type="range" min="-30" max="30" value="0" id="trimL" style="margin-left:5px;">
   <span id="trimLval">0</span>
 </div>
 
-<!-- Nút motor -->
 <div class="motor-row"><button data-cmd="F">▲</button></div>
 <div class="motor-row">
   <button data-cmd="L">◀</button>
@@ -60,7 +58,6 @@ input[type=range]{width:80px;}
 </div>
 <div class="motor-row"><button data-cmd="B">▼</button></div>
 
-<!-- TRIM phải -->
 <div class="row" style="justify-content:flex-end;align-items:center;">
   <span>TRIM R</span>
   <input type="range" min="-30" max="30" value="0" id="trimR" style="margin-left:5px;">
@@ -78,7 +75,7 @@ input[type=range]{width:80px;}
 <div class="small">PWM: <span id="spdVal">180</span></div>
 </div>
 
-<!-- GPIO CONTROL -->
+<!-- GPIO -->
 <div class="section">
 <b>GPIO CONTROL</b>
 <div class="row" style="justify-content:center;">
@@ -101,6 +98,12 @@ let currentCmd=null;
 let spd=180;
 let gpioState=[false,false,false,false,false];
 
+/* ================= TOUCH ================= */
+function touch(){
+  fetch("/touch",{method:"POST"}).catch(()=>{});
+}
+
+/* ================= WS ================= */
 function wsConnect(){
 
   ws = new WebSocket(
@@ -112,6 +115,7 @@ function wsConnect(){
   ws.onopen = ()=>{
     wsStatus("Đã kết nối");
     ws.send(JSON.stringify({hello:1}));
+    touch();
   };
 
   ws.onclose = ()=>{
@@ -128,23 +132,15 @@ function wsConnect(){
     const j = JSON.parse(e.data);
     const has = v => v !== undefined && v !== null;
 
-    // ===== TELEMETRY =====
     if(has(j.v1) || has(j.v2) || has(j.v3) || has(j.solarV)){
 
       const fmt = (v,s) =>
         (v/100).toFixed(2)+"V ("+s+"%)";
 
-      if(has(j.v1))
-        p1.innerText = fmt(j.v1,j.soc1);
-
-      if(has(j.v2))
-        p2.innerText = fmt(j.v2,j.soc2);
-
-      if(has(j.v3))
-        p3.innerText = fmt(j.v3,j.soc3);
-
-      if(has(j.solarV))
-        solar.innerText = (j.solarV/100).toFixed(2)+"V";
+      if(has(j.v1)) p1.innerText = fmt(j.v1,j.soc1);
+      if(has(j.v2)) p2.innerText = fmt(j.v2,j.soc2);
+      if(has(j.v3)) p3.innerText = fmt(j.v3,j.soc3);
+      if(has(j.solarV)) solar.innerText = (j.solarV/100).toFixed(2)+"V";
 
       if(has(j.src1) || has(j.src2)){
         src.innerText = j.src1 ? "Pin chính" :
@@ -160,17 +156,10 @@ function wsConnect(){
       }
     }
 
-    if(has(j.motor))
-      motor.innerText = j.motor ? "ĐANG CHẠY" : "DỪNG";
-
-    if(has(j.speed))
-      spdVal.innerText = j.speed;
-
-    if(has(j.trimL))
-      trimLval.innerText = j.trimL;
-
-    if(has(j.trimR))
-      trimRval.innerText = j.trimR;
+    if(has(j.motor)) motor.innerText = j.motor ? "ĐANG CHẠY" : "DỪNG";
+    if(has(j.speed)) spdVal.innerText = j.speed;
+    if(has(j.trimL)) trimLval.innerText = j.trimL;
+    if(has(j.trimR)) trimRval.innerText = j.trimR;
 
     for(let i=0;i<5;i++){
       if(has(j["g"+i])){
@@ -186,8 +175,7 @@ function wsStatus(s){
   document.getElementById("ws").innerText=s;
 }
 
-
-/* MOTOR */
+/* ================= MOTOR ================= */
 function sendMotor(cmd){
   if(ws && ws.readyState===1){
     let data={cmd:"motor",run:1,dir:cmd,speed:spd,
@@ -196,6 +184,7 @@ function sendMotor(cmd){
   }
 }
 function startHold(cmd){
+  touch();
   if(currentCmd===cmd) return;
   currentCmd=cmd;
   sendMotor(cmd);
@@ -203,9 +192,11 @@ function startHold(cmd){
   holdTimer=setInterval(()=>sendMotor(cmd),150);
 }
 function stopMotor(){
+  touch();
   clearInterval(holdTimer); holdTimer=null; currentCmd=null;
   if(ws && ws.readyState===1) ws.send(JSON.stringify({cmd:"motor",run:0}));
 }
+
 document.querySelectorAll("button[data-cmd]").forEach(btn=>{
   const cmd=btn.dataset.cmd;
   btn.addEventListener("pointerdown",e=>{e.preventDefault();startHold(cmd);});
@@ -218,6 +209,7 @@ document.getElementById("stopBtn").addEventListener("click",stopMotor);
 const spdSlider=document.getElementById("spd");
 const spdVal=document.getElementById("spdVal");
 spdSlider.oninput=()=>{
+  touch();
   spd=spdSlider.value;
   spdVal.innerText=spd;
   if(currentCmd) startHold(currentCmd);
@@ -228,15 +220,17 @@ const trimLSlider=document.getElementById("trimL");
 const trimRSlider=document.getElementById("trimR");
 const trimLval=document.getElementById("trimLval");
 const trimRval=document.getElementById("trimRval");
-trimLSlider.oninput=()=>{trimLval.innerText=trimLSlider.value;if(currentCmd) startHold(currentCmd);}
-trimRSlider.oninput=()=>{trimRval.innerText=trimRSlider.value;if(currentCmd) startHold(currentCmd);}
+trimLSlider.oninput=()=>{touch();trimLval.innerText=trimLSlider.value;if(currentCmd) startHold(currentCmd);}
+trimRSlider.oninput=()=>{touch();trimRval.innerText=trimRSlider.value;if(currentCmd) startHold(currentCmd);}
 
 /* GPIO */
 for(let i=0;i<5;i++){
   document.getElementById("gpio"+i).onclick=()=>{
+    touch();
     gpioState[i]=!gpioState[i];
     document.getElementById("gpio"+i).className=gpioState[i]?"gpio-on":"gpio-off";
-    if(ws && ws.readyState===1) ws.send(JSON.stringify({cmd:"gpio",num:i,state:gpioState[i]?1:0}));
+    if(ws && ws.readyState===1)
+      ws.send(JSON.stringify({cmd:"gpio",num:i,state:gpioState[i]?1:0}));
   }
 }
 
@@ -244,4 +238,3 @@ wsConnect();
 </script>
 </body>
 </html>
-
