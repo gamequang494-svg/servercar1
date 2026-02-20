@@ -75,7 +75,6 @@ def send_to_esp(message):
 @sock.route("/ws")
 def websocket(ws):
     global esp_client, esp_last_seen
-    global viewer_active, viewer_last_touch
 
     print("WS CONNECTED")
 
@@ -88,21 +87,13 @@ def websocket(ws):
             if data is None:
                 break
 
-            try:
-                obj = json.loads(data)
-            except:
-                continue
+            obj = json.loads(data)
 
             # ===== ESP HEARTBEAT =====
             if "hb" in obj:
+                print("ESP REGISTERED")
 
                 with lock:
-                    if esp_client and esp_client != ws:
-                        try:
-                            esp_client.close()
-                        except:
-                            pass
-
                     esp_client = ws
                     esp_last_seen = time.time()
 
@@ -111,22 +102,17 @@ def websocket(ws):
 
             # ===== BROWSER COMMAND =====
             if "cmd" in obj:
-
                 if ws not in browser_clients:
                     browser_clients.add(ws)
 
                 role = "browser"
-
-                viewer_active = True
-                viewer_last_touch = time.time()
 
                 send_to_esp(data)
                 continue
 
             # ===== TELEMETRY FROM ESP =====
             if ws == esp_client:
-
-                 broadcast_to_browsers(data)
+                broadcast_to_browsers(data)
 
     except Exception as e:
         print("WS ERROR:", e)
@@ -162,6 +148,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
 
 
 
