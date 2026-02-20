@@ -126,13 +126,7 @@ def websocket(ws):
             # ===== TELEMETRY FROM ESP =====
             if ws == esp_client:
 
-                update_viewer_state()
-
-                if viewer_active:
-                    broadcast_to_browsers(data)
-                else:
-                    # Không có viewer → bỏ telemetry
-                    pass
+                 broadcast_to_browsers(data)
 
     except Exception as e:
         print("WS ERROR:", e)
@@ -168,6 +162,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"RC CAR WS Server running on port {port}")
     app.run(host="0.0.0.0", port=port)
+
 
 
 
