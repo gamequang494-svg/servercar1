@@ -102,7 +102,14 @@ let gpioState=[false,false,false,false,false];
 function touch(){
   fetch("/touch",{method:"POST"}).catch(()=>{});
 }
-
+/* ================= DOM CACHE ================= */
+const p1     = document.getElementById("p1");
+const p2     = document.getElementById("p2");
+const p3     = document.getElementById("p3");
+const solar  = document.getElementById("solar");
+const src    = document.getElementById("src");
+const chg    = document.getElementById("chg");
+const motor  = document.getElementById("motor");
 /* ================= WS ================= */
 function wsConnect(){
 
@@ -238,3 +245,4 @@ wsConnect();
 </script>
 </body>
 </html>
+
